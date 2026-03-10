@@ -12,13 +12,14 @@
     body{font-family:'Press Start 2P',monospace;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;}
     body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(79,142,247,0.05) 1px,transparent 1px),linear-gradient(90deg,rgba(79,142,247,0.05) 1px,transparent 1px);background-size:32px 32px;pointer-events:none;z-index:0;}
     body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.07) 2px,rgba(0,0,0,0.07) 4px);pointer-events:none;z-index:0;}
-    #yt-player{display:none;}
+    #yt-player{position:fixed;bottom:80px;right:18px;width:220px;height:124px;z-index:199;border:2px solid var(--accent);display:none;}
+    #yt-player.visible{display:block;}
     .music-toast{position:fixed;top:18px;right:18px;z-index:500;display:flex;flex-direction:column;gap:8px;background:rgba(10,12,22,0.97);border:2px solid var(--accent);box-shadow:4px 4px 0 #000,0 0 24px var(--glow);padding:12px 14px;min-width:280px;max-width:340px;transform:translateX(calc(110% + 40px));opacity:0;transition:transform 0.5s cubic-bezier(0.22,1,0.36,1),opacity 0.4s;}
     .music-toast.show{transform:translateX(0);opacity:1;}
     .music-toast.slide-left{transform:translateX(calc(-110vw - 100%));opacity:0;transition:transform 1.0s cubic-bezier(0.4,0,1,1),opacity 0.4s 0.6s;}
     .toast-top{display:flex;align-items:center;gap:12px;}
-    .toast-icon{width:36px;height:36px;flex-shrink:0;border:2px solid var(--accent);display:flex;align-items:center;justify-content:center;font-size:1rem;background:var(--card);animation:tpulse 1.4s ease-in-out infinite;}
-    @keyframes tpulse{0%,100%{box-shadow:0 0 4px var(--accent);}50%{box-shadow:0 0 14px var(--accent);}}
+    .toast-thumb{width:48px;height:48px;flex-shrink:0;border:2px solid var(--accent);overflow:hidden;background:#000;}
+    .toast-thumb img{width:100%;height:100%;object-fit:cover;}
     .toast-text{display:flex;flex-direction:column;gap:4px;flex:1;overflow:hidden;}
     .toast-label{font-size:0.28rem;color:var(--muted);letter-spacing:0.12em;}
     .toast-song{font-size:0.36rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -36,10 +37,9 @@
     .toast-time,.bar-time{font-size:0.26rem;color:var(--muted);}
     .music-bar{position:fixed;bottom:18px;right:18px;z-index:200;display:flex;flex-direction:column;gap:6px;background:rgba(13,17,43,0.97);border:2px solid var(--accent);padding:10px 12px;box-shadow:4px 4px 0 #000,0 0 18px var(--glow);min-width:220px;}
     .bar-top{display:flex;align-items:center;gap:8px;}
-    .music-btn,.music-skip{width:26px;height:26px;border:2px solid var(--accent);background:var(--card);color:var(--accent);font-family:'Press Start 2P',monospace;font-size:0.4rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background 0.1s;flex-shrink:0;}
-    .music-skip{border-color:var(--border);color:var(--muted);}
-    .music-btn:hover{background:var(--accent);color:#000;}
-    .music-skip:hover{border-color:var(--accent);color:var(--accent);}
+    .music-btn,.music-skip,.music-vid{width:26px;height:26px;border:2px solid var(--accent);background:var(--card);color:var(--accent);font-family:'Press Start 2P',monospace;font-size:0.4rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background 0.1s;flex-shrink:0;}
+    .music-skip,.music-vid{border-color:var(--border);color:var(--muted);}
+    .music-btn:hover,.music-skip:hover,.music-vid:hover{background:var(--accent);color:#000;border-color:var(--accent);}
     .music-info{display:flex;flex-direction:column;gap:3px;flex:1;overflow:hidden;}
     .music-title{font-size:0.3rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
     .music-sub{font-size:0.26rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -109,15 +109,17 @@
       .credits-grid{grid-template-columns:1fr 1fr;}
       .music-bar{bottom:10px;right:10px;min-width:180px;}
       .music-toast{top:10px;right:10px;min-width:210px;max-width:260px;}
+      #yt-player.visible{width:160px;height:90px;bottom:120px;}
     }
   </style>
 </head>
 <body>
-  <div id="yt-player"></div>
+
+  <iframe id="yt-player"></iframe>
 
   <div class="music-toast" id="musicToast">
     <div class="toast-top">
-      <div class="toast-icon">&#9835;</div>
+      <div class="toast-thumb"><img id="toastThumb" src="" alt=""/></div>
       <div class="toast-text">
         <div class="toast-label">NOW PLAYING</div>
         <div class="toast-song" id="toastSong">...</div>
@@ -138,6 +140,7 @@
     <div class="bar-top">
       <button class="music-btn" id="musicBtn" onclick="toggleMusic()">&#9646;&#9646;</button>
       <button class="music-skip" onclick="skipSong()">&#9654;&#9654;</button>
+      <button class="music-vid" id="vidBtn" onclick="toggleVideo()" title="SHOW VIDEO">&#9654;</button>
       <div class="music-info">
         <div class="music-title" id="barTitle">LOADING...</div>
         <div class="music-sub" id="barSub">UUG RADIO</div>
@@ -195,7 +198,6 @@
       img:"https://api.sherbert.cimpress.io/v2/assets/cBoPBMTZ_aejxtMCdtOiS~200?signature=7933d24083208dda2009e72c24cbdc443db2d583",
       badge:"LIVE"
     }];
-
     function renderCards(list){
       const g=document.getElementById("grid");g.innerHTML="";
       list.forEach(s=>{
@@ -208,36 +210,19 @@
     renderCards(sites);
 
     const team=[
-      {
-        name:"LA'KAYDEN",
-        role:"MAIN CODER & LEAD DEVELOPER",
-        roleColor:"#4f8ef7",
-        img:"https://media.tenor.com/opIsMdePMYcAAAAe/low-low-cortisol.png",
-        bio:`<span>LA'KAYDEN</span> WASN'T THE FOUNDER OF UU PRODUCTION BUT IS THE MAIN CODER AND HAS MADE EVERYTHING FOR UUP.<br/><br/>DAN GAVE UP HIS POSITION TO LA'KAYDEN.<br/><br/>HAS BEEN A CODER SINCE <span>MID 2024 - 2025</span>.<br/><br/><a href="https://cash.app/$UUProduction" target="_blank" rel="noopener noreferrer">$ CASH APP</a>`
-      },
-      {
-        name:"DAN MISIFICIST",
-        role:"FOUNDER & SITE PUBLISHER",
-        roleColor:"#a855f7",
-        img:"https://wallpapers.com/images/hd/pfp-pictures-k3dqxn3n0naxefn2.jpg",
-        bio:`<span>DAN</span> IS THE REAL FOUNDER OF UU PRODUCTION BUT GAVE UP HIS POSITION BECAUSE HE DIDN'T KNOW AS MUCH AS LA'KAYDEN.<br/><br/>NOW ONLY SERVES AS THE <span>SITE PUBLISHER</span> BUT STILL GOES BY UU PRODUCTION BECAUSE LA'KAYDEN ALLOWS IT.<br/><br/>HAS BEEN IN THE PRODUCTION WITH LA'KAYDEN FOR <span>3 WEEKS</span>.`
-      },
-      {
-        name:"KYLE REIGN",
-        role:"DEVELOPER",
-        roleColor:"#06b6d4",
-        img:"https://cdn.wallpapersafari.com/53/39/9gBafQ.jpg",
-        bio:`<span>KYLE REIGN</span> HAS HELPED WITH MUCH OF THE CODE FOR MANY OF THE SITES CREATED.<br/><br/>SPECIALIZES IN <span>APIs</span> AND <span>GLOBAL SYSTEMS</span>.`
-      },
-      {
-        name:"CHANCE HARDY",
-        role:"TESTER & HEAD ADMIN OF MODERATION",
-        roleColor:"#f59e0b",
-        img:"https://upload.wikimedia.org/wikipedia/commons/thumb/6/62/Thomas_C._Lea_III_-_That_Two-Thousand_Yard_Stare_-_Original.jpg/960px-Thomas_C._Lea_III_-_That_Two-Thousand_Yard_Stare_-_Original.jpg",
-        bio:`<span>CHANCE HARDY</span> IS THE COUSIN AND BEST FRIEND OF LA'KAYDEN.<br/><br/>HAS HELPED TEST THE SITES AND MAKE SURE THEY ARE <span>PERFECTION</span>.<br/><br/>IS THE HEAD OF THE <span>MODERATION TEAM</span> WHICH ALSO CONSISTS OF:<br/><span>JONTAVIOUS</span> - ADMIN<br/><span>JAICEON JOHNSON</span> - MODERATOR`
-      },
+      {name:"LA'KAYDEN",role:"MAIN CODER & LEAD DEVELOPER",roleColor:"#4f8ef7",
+       img:"https://media.tenor.com/opIsMdePMYcAAAAe/low-low-cortisol.png",
+       bio:`<span>LA'KAYDEN</span> WASN'T THE FOUNDER OF UU PRODUCTION BUT IS THE MAIN CODER AND HAS MADE EVERYTHING FOR UUP.<br/><br/>DAN GAVE UP HIS POSITION TO LA'KAYDEN.<br/><br/>HAS BEEN A CODER SINCE <span>MID 2024 - 2025</span>.<br/><br/><a href="https://cash.app/$UUProduction" target="_blank" rel="noopener noreferrer">$ CASH APP</a>`},
+      {name:"DAN MISIFICIST",role:"FOUNDER & SITE PUBLISHER",roleColor:"#a855f7",
+       img:"https://wallpapers.com/images/hd/pfp-pictures-k3dqxn3n0naxefn2.jpg",
+       bio:`<span>DAN</span> IS THE REAL FOUNDER OF UU PRODUCTION BUT GAVE UP HIS POSITION BECAUSE HE DIDN'T KNOW AS MUCH AS LA'KAYDEN.<br/><br/>NOW ONLY SERVES AS THE <span>SITE PUBLISHER</span> BUT STILL GOES BY UU PRODUCTION BECAUSE LA'KAYDEN ALLOWS IT.<br/><br/>HAS BEEN IN THE PRODUCTION WITH LA'KAYDEN FOR <span>3 WEEKS</span>.`},
+      {name:"KYLE REIGN",role:"DEVELOPER",roleColor:"#06b6d4",
+       img:"https://cdn.wallpapersafari.com/53/39/9gBafQ.jpg",
+       bio:`<span>KYLE REIGN</span> HAS HELPED WITH MUCH OF THE CODE FOR MANY OF THE SITES CREATED.<br/><br/>SPECIALIZES IN <span>APIs</span> AND <span>GLOBAL SYSTEMS</span>.`},
+      {name:"CHANCE HARDY",role:"TESTER & HEAD ADMIN OF MODERATION",roleColor:"#f59e0b",
+       img:"https://upload.wikimedia.org/wikipedia/commons/thumb/6/62/Thomas_C._Lea_III_-_That_Two-Thousand_Yard_Stare_-_Original.jpg/960px-Thomas_C._Lea_III_-_That_Two-Thousand_Yard_Stare_-_Original.jpg",
+       bio:`<span>CHANCE HARDY</span> IS THE COUSIN AND BEST FRIEND OF LA'KAYDEN.<br/><br/>HAS HELPED TEST THE SITES AND MAKE SURE THEY ARE <span>PERFECTION</span>.<br/><br/>IS THE HEAD OF THE <span>MODERATION TEAM</span> WHICH ALSO CONSISTS OF:<br/><span>JONTAVIOUS</span> - ADMIN<br/><span>JAICEON JOHNSON</span> - MODERATOR`},
     ];
-
     function renderCredits(){
       const g=document.getElementById("creditsGrid");g.innerHTML="";
       team.forEach((m,i)=>{
@@ -262,19 +247,39 @@
 
     function fmt(s){s=Math.floor(s||0);return Math.floor(s/60)+':'+(s%60<10?'0':'')+s%60;}
 
-    function showToast(track,duration){
+    const playlist=[
+      {id:'A_nbjQDD-sU',title:'RUNAWAY',artist:'[ADULT SWIM]'},
+      {id:'-j-1z2ykgo8',title:'CLASSY',artist:'[OKXYVRO]'},
+      {id:'Rw75z5XJCgw',title:'REVOLTA DE CHAPEU',artist:'[0TO8]'},
+      {id:'X2DUpDxFJyg',title:'GRAVITY FALLS THEME',artist:'[THEMYSTERYOFGF]'},
+      {id:'HvYoohC9kVs',title:'HEADSHOT 223',artist:'[ISHOWSPEED]'},
+      {id:'NfMegACVJQw',title:'FREAKS',artist:'[SURF CURSE]'},
+      {id:'3elVQh4hz3M',title:'STEPHANIE',artist:'[NAFEESISBOUJEE]'},
+      {id:'MEv8cNXi8tw',title:'GNARLY',artist:'[KATSEYE]'},
+      {id:'WafvNKk7Tco',title:'INTERNET GIRL',artist:'[KATSEYE]'},
+      {id:'-bC4iak3kxg',title:'GAMEBOY',artist:'[KATSEYE]'},
+      {id:'TvVtYaqCni8',title:'SPAGHETTI',artist:'[LE SSERAFIM]'},
+      {id:'NmvVhovjJI0',title:'SEE YOU AGAIN',artist:'[TYLER THE CREATOR]'},
+      {id:'VF-FGf_ZZiI',title:'BAD HABIT',artist:'[STEVE LACY]'},
+      {id:'H2vTrHc-OGk',title:'POSTER BOY',artist:'[2HOLLIS]'},
+      {id:'lAHSQPZiYnE',title:'WASHING MACHINE HEART',artist:'[MITSKI]'},
+    ];
+    window.currentTrack=0;
+    window.isPlaying=false;
+    window.vidVisible=false;
+
+    function thumbUrl(id){return`https://img.youtube.com/vi/${id}/mqdefault.jpg`;}
+
+    function showToast(track){
       const t=document.getElementById("musicToast");
       document.getElementById("toastSong").textContent=track.title+" - "+track.artist;
-      const dur=fmt(duration);
-      document.getElementById("toastTotal").textContent=dur;
-      document.getElementById("barTotal").textContent=dur;
-      document.getElementById("toastDuration").textContent="0:00 / "+dur;
+      document.getElementById("toastThumb").src=thumbUrl(track.id);
       document.getElementById("toastProgressBar").style.width="0%";
       t.classList.remove("show","slide-left");
       void t.offsetWidth;
       t.classList.add("show");
       if(window.toastTimer)clearTimeout(window.toastTimer);
-      window.toastTimer=setTimeout(()=>{t.classList.remove("show");t.classList.add("slide-left");},4500);
+      window.toastTimer=setTimeout(()=>{t.classList.remove("show");t.classList.add("slide-left");},1150);
     }
 
     function updateBar(track){
@@ -309,20 +314,18 @@
       window.ytPlayer.seekTo(pct*(window.ytPlayer.getDuration()||0),true);
     }
 
-    const playlist=[
-      {id:'A_nbjQDD-sU',title:'RUNAWAY',artist:'[ADULT SWIM]'},
-      {id:'-j-1z2ykgo8',title:'CLASSY',artist:'[OKXYVRO]'},
-      {id:'Rw75z5XJCgw',title:'REVOLTA DE CHAPEU',artist:'[0TO8]'},
-      {id:'X2DUpDxFJyg',title:'GRAVITY FALLS THEME',artist:'[THEMYSTERYOFGF]'},
-    ];
-    window.currentTrack=0;
-    window.isPlaying=false;
+    function toggleVideo(){
+      const p=document.getElementById("yt-player");
+      window.vidVisible=!window.vidVisible;
+      p.classList.toggle("visible",window.vidVisible);
+      document.getElementById("vidBtn").style.borderColor=window.vidVisible?"var(--accent)":"var(--border)";
+      document.getElementById("vidBtn").style.color=window.vidVisible?"var(--accent)":"var(--muted)";
+    }
 
     function onYouTubeIframeAPIReady(){
       window.ytPlayer=new YT.Player('yt-player',{
-        height:'0',width:'0',
         videoId:playlist[0].id,
-        playerVars:{autoplay:1,controls:0},
+        playerVars:{autoplay:1,controls:0,modestbranding:1,rel:0},
         events:{
           onReady:e=>{e.target.setVolume(35);e.target.playVideo();},
           onStateChange:e=>{
@@ -330,7 +333,7 @@
               window.isPlaying=true;
               document.getElementById('musicBtn').innerHTML='&#9646;&#9646;';
               document.getElementById('barEq').classList.add('playing');
-              showToast(playlist[window.currentTrack],window.ytPlayer.getDuration());
+              showToast(playlist[window.currentTrack]);
               updateBar(playlist[window.currentTrack]);
               startProgress();
             }else if(e.data===YT.PlayerState.ENDED){
