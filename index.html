@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>UUG Productions</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet"/>
+  <style>
+    :root{--bg:#0a0c12;--card:#13172b;--border:#1e2540;--accent:#4f8ef7;--glow:rgba(79,142,247,0.3);--text:#e8ecf8;--muted:#7a85a8;}
+    *{margin:0;padding:0;box-sizing:border-box;}
+    html{scroll-behavior:smooth;}
+    body{font-family:'Press Start 2P',monospace;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;}
+    body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(79,142,247,0.05) 1px,transparent 1px),linear-gradient(90deg,rgba(79,142,247,0.05) 1px,transparent 1px);background-size:32px 32px;pointer-events:none;z-index:0;}
+    body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.07) 2px,rgba(0,0,0,0.07) 4px);pointer-events:none;z-index:0;}
+    #yt-player{display:none;}
+    .music-toast{position:fixed;top:18px;right:18px;z-index:500;display:flex;flex-direction:column;gap:8px;background:rgba(10,12,22,0.97);border:2px solid var(--accent);box-shadow:4px 4px 0 #000,0 0 24px var(--glow);padding:12px 14px;min-width:280px;max-width:340px;transform:translateX(calc(110% + 40px));opacity:0;transition:transform 0.5s cubic-bezier(0.22,1,0.36,1),opacity 0.4s;}
+    .music-toast.show{transform:translateX(0);opacity:1;}
+    .music-toast.slide-left{transform:translateX(calc(-110vw - 100%));opacity:0;transition:transform 1.0s cubic-bezier(0.4,0,1,1),opacity 0.4s 0.6s;}
+    .toast-top{display:flex;align-items:center;gap:12px;}
+    .toast-icon{width:36px;height:36px;flex-shrink:0;border:2px solid var(--accent);display:flex;align-items:center;justify-content:center;font-size:1rem;background:var(--card);animation:tpulse 1.4s ease-in-out infinite;}
+    @keyframes tpulse{0%,100%{box-shadow:0 0 4px var(--accent);}50%{box-shadow:0 0 14px var(--accent);}}
+    .toast-text{display:flex;flex-direction:column;gap:4px;flex:1;overflow:hidden;}
+    .toast-label{font-size:0.28rem;color:var(--muted);letter-spacing:0.12em;}
+    .toast-song{font-size:0.36rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .toast-duration{font-size:0.28rem;color:var(--accent);}
+    .toast-eq{display:flex;align-items:flex-end;gap:2px;height:14px;flex-shrink:0;}
+    .toast-eq span,.bar-eq span{width:3px;background:var(--accent);animation:eq 0.7s ease-in-out infinite;}
+    .toast-eq span:nth-child(1),.bar-eq span:nth-child(1){height:5px;animation-delay:0s;}
+    .toast-eq span:nth-child(2),.bar-eq span:nth-child(2){height:10px;animation-delay:0.15s;}
+    .toast-eq span:nth-child(3),.bar-eq span:nth-child(3){height:14px;animation-delay:0.3s;}
+    .toast-eq span:nth-child(4),.bar-eq span:nth-child(4){height:7px;animation-delay:0.45s;}
+    @keyframes eq{0%,100%{transform:scaleY(0.3);}50%{transform:scaleY(1);}}
+    .toast-progress-wrap{width:100%;height:4px;background:var(--border);}
+    .toast-progress-bar{height:4px;background:var(--accent);width:0%;transition:width 1s linear;box-shadow:0 0 6px var(--accent);}
+    .toast-time-row,.bar-time-row{display:flex;justify-content:space-between;}
+    .toast-time,.bar-time{font-size:0.26rem;color:var(--muted);}
+    .music-bar{position:fixed;bottom:18px;right:18px;z-index:200;display:flex;flex-direction:column;gap:6px;background:rgba(13,17,43,0.97);border:2px solid var(--accent);padding:10px 12px;box-shadow:4px 4px 0 #000,0 0 18px var(--glow);min-width:220px;}
+    .bar-top{display:flex;align-items:center;gap:8px;}
+    .music-btn,.music-skip{width:26px;height:26px;border:2px solid var(--accent);background:var(--card);color:var(--accent);font-family:'Press Start 2P',monospace;font-size:0.4rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background 0.1s;flex-shrink:0;}
+    .music-skip{border-color:var(--border);color:var(--muted);}
+    .music-btn:hover{background:var(--accent);color:#000;}
+    .music-skip:hover{border-color:var(--accent);color:var(--accent);}
+    .music-info{display:flex;flex-direction:column;gap:3px;flex:1;overflow:hidden;}
+    .music-title{font-size:0.3rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .music-sub{font-size:0.26rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .bar-eq{display:flex;align-items:flex-end;gap:2px;height:14px;opacity:0;transition:opacity 0.3s;flex-shrink:0;}
+    .bar-eq.playing{opacity:1;}
+    .bar-progress-wrap{width:100%;height:3px;background:var(--border);cursor:pointer;}
+    .bar-progress-fill{height:3px;background:var(--accent);width:0%;transition:width 1s linear;pointer-events:none;}
+    header{position:sticky;top:0;z-index:100;height:68px;background:rgba(10,12,18,0.95);border-bottom:2px solid var(--accent);box-shadow:0 4px 20px var(--glow);display:flex;align-items:center;padding:0 28px;gap:14px;}
+    header img.logo{width:44px;height:44px;border-radius:50%;border:2px solid var(--accent);object-fit:cover;}
+    .brand{display:flex;flex-direction:column;gap:5px;}
+    .brand-name{font-size:0.62rem;letter-spacing:0.08em;text-shadow:2px 2px 0 #000,0 0 12px var(--accent);}
+    .brand-sub{font-size:0.3rem;color:var(--muted);}
+    .hero{position:relative;z-index:1;text-align:center;padding:60px 32px 44px;display:flex;flex-direction:column;align-items:center;gap:16px;}
+    .hero-logo{width:96px;height:96px;border-radius:50%;border:3px solid var(--accent);object-fit:cover;box-shadow:4px 4px 0 #000,0 0 40px var(--glow);animation:float 3s ease-in-out infinite;}
+    @keyframes float{0%,100%{transform:translateY(0);}50%{transform:translateY(-8px);}}
+    .hero-title{font-size:clamp(0.65rem,2.2vw,1.2rem);letter-spacing:0.12em;color:#fff;line-height:1.6;text-shadow:3px 3px 0 #000,0 0 20px var(--accent);}
+    .hero-title::after{content:'_';animation:blink 1s step-end infinite;color:var(--accent);}
+    @keyframes blink{0%,100%{opacity:1;}50%{opacity:0;}}
+    .hero-credit{font-size:0.35rem;color:var(--muted);letter-spacing:0.14em;}
+    .hero-credit span{color:var(--accent);}
+    .divider{position:relative;z-index:1;display:flex;align-items:center;gap:12px;padding:0 28px;max-width:1100px;margin:0 auto 28px;}
+    .divider-line{flex:1;height:2px;background:var(--border);}
+    .divider-label{font-size:0.38rem;letter-spacing:0.2em;color:var(--muted);}
+    .grid{position:relative;z-index:1;display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;padding:0 28px 56px;max-width:1100px;margin:0 auto;}
+    .card{background:var(--card);border:2px solid var(--border);cursor:pointer;text-decoration:none;color:inherit;display:flex;flex-direction:column;transition:transform 0.15s,border-color 0.15s,box-shadow 0.15s;box-shadow:3px 3px 0 #000;}
+    .card:hover{transform:translate(-3px,-4px);border-color:var(--accent);box-shadow:6px 6px 0 #000,0 0 20px var(--glow);}
+    .card-thumb{width:100%;height:130px;background:#fff;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;}
+    .card-thumb img{width:100%;height:100%;object-fit:contain;padding:10px;transition:transform 0.3s;}
+    .card:hover .card-thumb img{transform:scale(1.06);}
+    .card-badge{position:absolute;top:6px;right:6px;background:#000;border:2px solid var(--accent);font-size:0.35rem;letter-spacing:0.1em;padding:3px 7px;color:var(--accent);}
+    .card-body{padding:12px 14px 14px;display:flex;flex-direction:column;gap:8px;flex:1;}
+    .card-name{font-size:0.52rem;letter-spacing:0.06em;text-shadow:1px 1px 0 #000;}
+    .card-desc{font-size:0.35rem;color:var(--muted);line-height:2.2;flex:1;}
+    .card-footer{margin-top:6px;display:flex;justify-content:flex-end;}
+    .card-arrow{font-size:0.5rem;color:var(--muted);transition:color 0.15s,transform 0.15s;}
+    .card:hover .card-arrow{color:var(--accent);transform:translateX(4px);}
+    .credits-section{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:0 28px 90px;}
+    .credits-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px;}
+    .credit-card{background:var(--card);border:2px solid var(--border);box-shadow:3px 3px 0 #000;overflow:hidden;cursor:pointer;transition:border-color 0.15s,box-shadow 0.15s,transform 0.15s;}
+    .credit-card:hover{border-color:var(--accent);box-shadow:5px 5px 0 #000,0 0 16px var(--glow);transform:translate(-2px,-3px);}
+    .credit-avatar-wrap{width:100%;aspect-ratio:1/1;overflow:hidden;background:#111;}
+    .credit-avatar-wrap img{width:100%;height:100%;object-fit:cover;display:block;}
+    .credit-info{padding:12px 14px 14px;}
+    .credit-name{font-size:0.48rem;letter-spacing:0.06em;margin-bottom:6px;text-shadow:1px 1px 0 #000;}
+    .credit-role{font-size:0.32rem;letter-spacing:0.1em;text-transform:uppercase;line-height:1.9;}
+    .modal-overlay{display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.85);align-items:center;justify-content:center;backdrop-filter:blur(4px);}
+    .modal-overlay.open{display:flex;}
+    .modal{background:var(--bg);border:3px solid var(--accent);box-shadow:8px 8px 0 #000,0 0 40px var(--glow);max-width:580px;width:90%;max-height:85vh;overflow-y:auto;position:relative;}
+    .modal-header{display:flex;align-items:center;gap:16px;padding:20px 22px 16px;border-bottom:2px solid var(--border);}
+    .modal-avatar{width:72px;height:72px;flex-shrink:0;border:2px solid var(--accent);object-fit:cover;}
+    .modal-title-block{display:flex;flex-direction:column;gap:7px;}
+    .modal-name{font-size:0.65rem;letter-spacing:0.08em;text-shadow:2px 2px 0 #000,0 0 10px var(--accent);}
+    .modal-role{font-size:0.35rem;letter-spacing:0.12em;}
+    .modal-body{padding:20px 22px 24px;}
+    .modal-bio{font-size:0.35rem;line-height:2.4;color:var(--muted);}
+    .modal-bio span{color:var(--accent);}
+    .modal-bio a{color:#00d64f;text-decoration:none;border:2px solid #00d64f;padding:5px 10px;display:inline-block;margin-top:8px;font-size:0.32rem;box-shadow:2px 2px 0 #000;}
+    .modal-bio a:hover{background:#00d64f;color:#000;}
+    .modal-close{position:absolute;top:10px;right:12px;background:none;border:2px solid var(--border);color:var(--muted);font-family:'Press Start 2P',monospace;font-size:0.4rem;padding:5px 8px;cursor:pointer;}
+    .modal-close:hover{border-color:var(--accent);color:var(--accent);}
+    footer{position:relative;z-index:1;border-top:2px solid var(--border);text-align:center;padding:20px 28px;font-size:0.3rem;color:var(--muted);letter-spacing:0.1em;}
+    footer span{color:var(--accent);}
+    @media(max-width:600px){
+      .grid{grid-template-columns:1fr 1fr;gap:10px;padding:0 12px 40px;}
+      .hero{padding:40px 12px 28px;}
+      .divider,.credits-section{padding-left:12px;padding-right:12px;}
+      .credits-grid{grid-template-columns:1fr 1fr;}
+      .music-bar{bottom:10px;right:10px;min-width:180px;}
+      .music-toast{top:10px;right:10px;min-width:210px;max-width:260px;}
+    }
+  </style>
+</head>
+<body>
+  <div id="yt-player"></div>
+
+  <div class="music-toast" id="musicToast">
+    <div class="toast-top">
+      <div class="toast-icon">&#9835;</div>
+      <div class="toast-text">
+        <div class="toast-label">NOW PLAYING</div>
+        <div class="toast-song" id="toastSong">...</div>
+        <div class="toast-duration" id="toastDuration">0:00 / 0:00</div>
+      </div>
+      <div class="toast-eq"><span></span><span></span><span></span><span></span></div>
+    </div>
+    <div class="toast-progress-wrap">
+      <div class="toast-progress-bar" id="toastProgressBar"></div>
+    </div>
+    <div class="toast-time-row">
+      <span class="toast-time" id="toastCurrent">0:00</span>
+      <span class="toast-time" id="toastTotal">0:00</span>
+    </div>
+  </div>
+
+  <div class="music-bar">
+    <div class="bar-top">
+      <button class="music-btn" id="musicBtn" onclick="toggleMusic()">&#9646;&#9646;</button>
+      <button class="music-skip" onclick="skipSong()">&#9654;&#9654;</button>
+      <div class="music-info">
+        <div class="music-title" id="barTitle">LOADING...</div>
+        <div class="music-sub" id="barSub">UUG RADIO</div>
+      </div>
+      <div class="bar-eq" id="barEq"><span></span><span></span><span></span><span></span></div>
+    </div>
+    <div class="bar-progress-wrap" onclick="seekTo(event)">
+      <div class="bar-progress-fill" id="barProgressFill"></div>
+    </div>
+    <div class="bar-time-row">
+      <span class="bar-time" id="barCurrent">0:00</span>
+      <span class="bar-time" id="barTotal">0:00</span>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+    <div class="modal">
+      <button class="modal-close" onclick="closeModalDirect()">[X]</button>
+      <div class="modal-header">
+        <img class="modal-avatar" id="modalAvatar" src="" alt=""/>
+        <div class="modal-title-block">
+          <div class="modal-name" id="modalName"></div>
+          <div class="modal-role" id="modalRole"></div>
+        </div>
+      </div>
+      <div class="modal-body"><div class="modal-bio" id="modalBio"></div></div>
+    </div>
+  </div>
+
+  <header>
+    <img class="logo" src="https://api.sherbert.cimpress.io/v2/assets/F5zyE9WKTEwyS-YQF3fkZ~200?signature=7f0e12c6a8f73ddad968a67bc734a472c8876d74" alt="UUG Logo"/>
+    <div class="brand">
+      <span class="brand-name">UUG PRODUCTIONS</span>
+      <span class="brand-sub">&gt; OFFICIAL HUB &lt;</span>
+    </div>
+  </header>
+
+  <section class="hero">
+    <img class="hero-logo" src="https://api.sherbert.cimpress.io/v2/assets/F5zyE9WKTEwyS-YQF3fkZ~200?signature=7f0e12c6a8f73ddad968a67bc734a472c8876d74" alt="UUG Logo"/>
+    <h1 class="hero-title">UUG PRODUCTIONS</h1>
+    <p class="hero-credit">CREATED BY <span>UUG PRODUCTION</span></p>
+  </section>
+
+  <div class="divider"><div class="divider-line"></div><span class="divider-label">&gt;&gt; OUR SITES &lt;&lt;</span><div class="divider-line"></div></div>
+  <div class="grid" id="grid"></div>
+  <div class="divider" style="margin-top:8px;"><div class="divider-line"></div><span class="divider-label">&gt;&gt; CREDITS &lt;&lt;</span><div class="divider-line"></div></div>
+  <div class="credits-section"><div class="credits-grid" id="creditsGrid"></div></div>
+  <footer>&copy; 2026 <span>UUG PRODUCTIONS</span> -- ALL RIGHTS RESERVED</footer>
+
+  <script>
+    const sites=[{
+      name:"UV-LEARNING",
+      desc:"INTERACTIVE LEARNING PLATFORM BY UUG PRODUCTIONS.",
+      url:"https://uvlearning.onrender.com/",
+      img:"https://api.sherbert.cimpress.io/v2/assets/cBoPBMTZ_aejxtMCdtOiS~200?signature=7933d24083208dda2009e72c24cbdc443db2d583",
+      badge:"LIVE"
+    }];
+
+    function renderCards(list){
+      const g=document.getElementById("grid");g.innerHTML="";
+      list.forEach(s=>{
+        const a=document.createElement("a");
+        a.href=s.url;a.target="_blank";a.rel="noopener noreferrer";a.className="card";
+        a.innerHTML=`<div class="card-thumb"><img src="${s.img}" alt="${s.name}"><span class="card-badge">${s.badge}</span></div><div class="card-body"><div class="card-name">${s.name}</div><div class="card-desc">${s.desc}</div><div class="card-footer"><span class="card-arrow">&gt;&gt;</span></div></div>`;
+        g.appendChild(a);
+      });
+    }
+    renderCards(sites);
+
+    const team=[
+      {
+        name:"LA'KAYDEN",
+        role:"MAIN CODER & LEAD DEVELOPER",
+        roleColor:"#4f8ef7",
+        img:"https://media.tenor.com/opIsMdePMYcAAAAe/low-low-cortisol.png",
+        bio:`<span>LA'KAYDEN</span> WASN'T THE FOUNDER OF UU PRODUCTION BUT IS THE MAIN CODER AND HAS MADE EVERYTHING FOR UUP.<br/><br/>DAN GAVE UP HIS POSITION TO LA'KAYDEN.<br/><br/>HAS BEEN A CODER SINCE <span>MID 2024 - 2025</span>.<br/><br/><a href="https://cash.app/$UUProduction" target="_blank" rel="noopener noreferrer">$ CASH APP</a>`
+      },
+      {
+        name:"DAN MISIFICIST",
+        role:"FOUNDER & SITE PUBLISHER",
+        roleColor:"#a855f7",
+        img:"https://wallpapers.com/images/hd/pfp-pictures-k3dqxn3n0naxefn2.jpg",
+        bio:`<span>DAN</span> IS THE REAL FOUNDER OF UU PRODUCTION BUT GAVE UP HIS POSITION BECAUSE HE DIDN'T KNOW AS MUCH AS LA'KAYDEN.<br/><br/>NOW ONLY SERVES AS THE <span>SITE PUBLISHER</span> BUT STILL GOES BY UU PRODUCTION BECAUSE LA'KAYDEN ALLOWS IT.<br/><br/>HAS BEEN IN THE PRODUCTION WITH LA'KAYDEN FOR <span>3 WEEKS</span>.`
+      },
+      {
+        name:"KYLE REIGN",
+        role:"DEVELOPER",
+        roleColor:"#06b6d4",
+        img:"https://cdn.wallpapersafari.com/53/39/9gBafQ.jpg",
+        bio:`<span>KYLE REIGN</span> HAS HELPED WITH MUCH OF THE CODE FOR MANY OF THE SITES CREATED.<br/><br/>SPECIALIZES IN <span>APIs</span> AND <span>GLOBAL SYSTEMS</span>.`
+      },
+      {
+        name:"CHANCE HARDY",
+        role:"TESTER & HEAD ADMIN OF MODERATION",
+        roleColor:"#f59e0b",
+        img:"https://upload.wikimedia.org/wikipedia/commons/thumb/6/62/Thomas_C._Lea_III_-_That_Two-Thousand_Yard_Stare_-_Original.jpg/960px-Thomas_C._Lea_III_-_That_Two-Thousand_Yard_Stare_-_Original.jpg",
+        bio:`<span>CHANCE HARDY</span> IS THE COUSIN AND BEST FRIEND OF LA'KAYDEN.<br/><br/>HAS HELPED TEST THE SITES AND MAKE SURE THEY ARE <span>PERFECTION</span>.<br/><br/>IS THE HEAD OF THE <span>MODERATION TEAM</span> WHICH ALSO CONSISTS OF:<br/><span>JONTAVIOUS</span> - ADMIN<br/><span>JAICEON JOHNSON</span> - MODERATOR`
+      },
+    ];
+
+    function renderCredits(){
+      const g=document.getElementById("creditsGrid");g.innerHTML="";
+      team.forEach((m,i)=>{
+        const d=document.createElement("div");d.className="credit-card";d.onclick=()=>openModal(i);
+        d.innerHTML=`<div class="credit-avatar-wrap"><img src="${m.img}" alt="${m.name}"/></div><div class="credit-info"><div class="credit-name">${m.name}</div><div class="credit-role" style="color:${m.roleColor}">${m.role}</div></div>`;
+        g.appendChild(d);
+      });
+    }
+    renderCredits();
+
+    function openModal(i){
+      const m=team[i];
+      document.getElementById("modalAvatar").src=m.img;
+      document.getElementById("modalName").textContent=m.name;
+      document.getElementById("modalRole").textContent=m.role;
+      document.getElementById("modalRole").style.color=m.roleColor;
+      document.getElementById("modalBio").innerHTML=m.bio;
+      document.getElementById("modalOverlay").classList.add("open");
+    }
+    function closeModal(e){if(e.target===document.getElementById("modalOverlay"))closeModalDirect();}
+    function closeModalDirect(){document.getElementById("modalOverlay").classList.remove("open");}
+
+    function fmt(s){s=Math.floor(s||0);return Math.floor(s/60)+':'+(s%60<10?'0':'')+s%60;}
+
+    function showToast(track,duration){
+      const t=document.getElementById("musicToast");
+      document.getElementById("toastSong").textContent=track.title+" - "+track.artist;
+      const dur=fmt(duration);
+      document.getElementById("toastTotal").textContent=dur;
+      document.getElementById("barTotal").textContent=dur;
+      document.getElementById("toastDuration").textContent="0:00 / "+dur;
+      document.getElementById("toastProgressBar").style.width="0%";
+      t.classList.remove("show","slide-left");
+      void t.offsetWidth;
+      t.classList.add("show");
+      if(window.toastTimer)clearTimeout(window.toastTimer);
+      window.toastTimer=setTimeout(()=>{t.classList.remove("show");t.classList.add("slide-left");},4500);
+    }
+
+    function updateBar(track){
+      document.getElementById("barTitle").textContent=track.title;
+      document.getElementById("barSub").textContent=track.artist;
+    }
+
+    function startProgress(){
+      if(window.progressInterval)clearInterval(window.progressInterval);
+      window.progressInterval=setInterval(()=>{
+        if(!window.ytPlayer||!window.isPlaying)return;
+        try{
+          const cur=window.ytPlayer.getCurrentTime()||0;
+          const dur=window.ytPlayer.getDuration()||1;
+          const pct=(cur/dur)*100;
+          const cs=fmt(cur),ds=fmt(dur);
+          document.getElementById("toastProgressBar").style.width=pct+"%";
+          document.getElementById("barProgressFill").style.width=pct+"%";
+          document.getElementById("toastCurrent").textContent=cs;
+          document.getElementById("toastTotal").textContent=ds;
+          document.getElementById("toastDuration").textContent=cs+" / "+ds;
+          document.getElementById("barCurrent").textContent=cs;
+          document.getElementById("barTotal").textContent=ds;
+        }catch(e){}
+      },1000);
+    }
+
+    function seekTo(e){
+      if(!window.ytPlayer)return;
+      const rect=e.currentTarget.getBoundingClientRect();
+      const pct=(e.clientX-rect.left)/rect.width;
+      window.ytPlayer.seekTo(pct*(window.ytPlayer.getDuration()||0),true);
+    }
+
+    const playlist=[
+      {id:'A_nbjQDD-sU',title:'RUNAWAY',artist:'[ADULT SWIM]'},
+      {id:'-j-1z2ykgo8',title:'CLASSY',artist:'[OKXYVRO]'},
+      {id:'Rw75z5XJCgw',title:'REVOLTA DE CHAPEU',artist:'[0TO8]'},
+      {id:'X2DUpDxFJyg',title:'GRAVITY FALLS THEME',artist:'[THEMYSTERYOFGF]'},
+    ];
+    window.currentTrack=0;
+    window.isPlaying=false;
+
+    function onYouTubeIframeAPIReady(){
+      window.ytPlayer=new YT.Player('yt-player',{
+        height:'0',width:'0',
+        videoId:playlist[0].id,
+        playerVars:{autoplay:1,controls:0},
+        events:{
+          onReady:e=>{e.target.setVolume(35);e.target.playVideo();},
+          onStateChange:e=>{
+            if(e.data===YT.PlayerState.PLAYING){
+              window.isPlaying=true;
+              document.getElementById('musicBtn').innerHTML='&#9646;&#9646;';
+              document.getElementById('barEq').classList.add('playing');
+              showToast(playlist[window.currentTrack],window.ytPlayer.getDuration());
+              updateBar(playlist[window.currentTrack]);
+              startProgress();
+            }else if(e.data===YT.PlayerState.ENDED){
+              skipSong();
+            }else{
+              window.isPlaying=false;
+              document.getElementById('musicBtn').innerHTML='&#9654;';
+              document.getElementById('barEq').classList.remove('playing');
+            }
+          }
+        }
+      });
+    }
+
+    function skipSong(){
+      window.currentTrack=(window.currentTrack+1)%playlist.length;
+      if(window.ytPlayer){window.ytPlayer.loadVideoById(playlist[window.currentTrack].id);window.ytPlayer.playVideo();}
+    }
+    function toggleMusic(){
+      if(!window.ytPlayer)return;
+      window.isPlaying?window.ytPlayer.pauseVideo():window.ytPlayer.playVideo();
+    }
+
+    var tag=document.createElement('script');
+    tag.src="https://www.youtube.com/iframe_api";
+    document.head.appendChild(tag);
+  </script>
+</body>
+</html>
